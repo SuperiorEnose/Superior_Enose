@@ -18,3 +18,5 @@ err_msg = "This should not be seen"
                                                        required_devtype='.*IA',
                                                        required_err_msg=err_msg)
 zhinst.utils.api_server_version_check(daq)
+
+daq.getList('/*')
