@@ -9,7 +9,6 @@ zhinst.examples.common.example_sweeper.run_example('dev3481', 0.1, True)
 # The name of the MFIA
 device_id = 'dev3481'
 
-
 # The apilevel of this program
 apilevel_MFIA = 6
 
