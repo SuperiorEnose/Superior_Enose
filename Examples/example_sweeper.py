@@ -98,7 +98,8 @@ def run_example(device_id, amplitude=0.1, do_plot=False):
                    ['/%s/sigouts/%d/on'            % (device, out_channel), 1],
                    ['/%s/sigouts/%d/enables/%d'    % (device, out_channel, out_mixer_channel), 1],
                    ['/%s/sigouts/%d/range'         % (device, out_channel), 1],
-                   ['/%s/sigouts/%d/amplitudes/%d' % (device, out_channel, out_mixer_channel), amplitude]]
+                   ['/%s/sigouts/%d/amplitudes/%d' % (device, out_channel, out_mixer_channel), amplitude],
+                   ['/%s/imps/%d/enable' % (device, demod_index), 1]]
     # Some other device-type dependent configuration may be required. For
     # example, disable the signal inputs `diff` and the signal outputs `add` for
     # HF2 instruments.
@@ -174,7 +175,7 @@ def run_example(device_id, amplitude=0.1, do_plot=False):
     # Now subscribe to the nodes from which data will be recorded. Note, this is
     # not the subscribe from ziDAQServer; it is a Module subscribe. The Sweeper
     # Module needs to subscribe to the nodes it will return data for.x
-    path = '/%s/demods/%d/sample' % (device, demod_index)
+    path = '/%s/imps/%d/sample' % (device, demod_index)
     sweeper.subscribe(path)
 
     # Start the Sweeper's thread.
