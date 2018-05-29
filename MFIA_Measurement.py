@@ -5,7 +5,27 @@ import time
 import matplotlib.pyplot as plt
 import zhinst.utils
 import zhinst.examples
-zhinst.examples.common.example_sweeper.run_example('dev3481', 0.1, True)
+# data = zhinst.examples.common.example_sweeper.run_example('dev3481', 0.1, True)
+
+
+def get_value():
+    for i in range(0, 5):
+        fprop = 500 + i*100
+        daq.set([['/%s/imps/%d/freq' % (device, imp_index), fprop]])
+        time.sleep(0.001)
+        RealZ = 0
+        ImagZ = 0
+        value = daq.poll(0.1, 500, 0, True)
+        for i in range(0, len(value['/dev3481/imps/0/sample']['param0'])):
+            RealZ += value['/dev3481/imps/0/sample']['param0'][i]
+            ImagZ += value['/dev3481/imps/0/sample']['param1'][i]
+        RealZ = RealZ/len(value['/dev3481/imps/0/sample']['param0'])
+        ImagZ = ImagZ/len(value['/dev3481/imps/0/sample']['param0'])
+        print('The real part of the impedance %.8f ohm' % RealZ)
+        print('The imaginary part of the impedance %.9fj ohm' % ImagZ)
+    return len(value['/dev3481/imps/0/sample']['param0'])
+
+
 # The name of the MFIA
 device_id = 'dev3481'
 
@@ -42,7 +62,7 @@ man_curr_range = 10e-3
 man_volt_range = 10e-3
 
 exp_setting = [['/%s/imps/%d/enable' % (device, imp_index), 1],
-               ['/%s/imps/%d/mode' % (device, imp_index), 0],
+               ['/%s/imps/%d/mode' % (device, imp_index), 1],
                ['/%s/imps/%d/auto/output' % (device, imp_index), 1],
                ['/%s/imps/%d/auto/bw' % (device, imp_index), 1],
                ['/%s/imps/%d/freq' % (device, imp_index), 500],
@@ -57,18 +77,6 @@ trigger_auto_ranging = [['/%s/currins/%d/autorange' % (device, curr_index), 1],
 print('Start auto ranging. This takes a few seconds.')
 # daq.set(trigger_auto_ranging)
 
-# Wait for the demodulator filter to settle.
-#time.sleep(1)
-#imp = daq.impedanceModule()
-#imp.subscribe('/dev3481/IMPS/0/SAMPLE')
-#imp.execute()
-#time.sleep(3)
-#imp.finish()
-#value = imp.read(True)
-#imp.unsubscribe('*')
-# signal_path = '/%s/demods/%d/sample' % (device, demod_index)
-# value = imp.getDouble('/dev3481/IMPS/0/SAMPLE')
-#p = value[1][0]['x']
+daq.subscribe('/dev3481/IMPS/0/SAMPLE')
 
-# imp.listNodes('/dev3481/imps/', 3)
-#print(p)
+get_value()
