@@ -5,25 +5,34 @@ import time
 import matplotlib.pyplot as plt
 import zhinst.utils
 import zhinst.examples
+from collections import defaultdict
 # data = zhinst.examples.common.example_sweeper.run_example('dev3481', 0.1, True)
 
 
 def get_value():
-    for i in range(0, 5):
-        fprop = 500 + i*100
+    RealZ = 0
+    ImagZ = 0
+    frequency = 0
+    data = defaultdict(dict)
+    for dataindex in range(0, 10):
+        fprop = 500 + dataindex*1000
         daq.set([['/%s/imps/%d/freq' % (device, imp_index), fprop]])
-        time.sleep(0.001)
-        RealZ = 0
-        ImagZ = 0
+        daq.sync()
+        time.sleep(0.5)
         value = daq.poll(0.1, 500, 0, True)
-        for i in range(0, len(value['/dev3481/imps/0/sample']['param0'])):
-            RealZ += value['/dev3481/imps/0/sample']['param0'][i]
-            ImagZ += value['/dev3481/imps/0/sample']['param1'][i]
-        RealZ = RealZ/len(value['/dev3481/imps/0/sample']['param0'])
-        ImagZ = ImagZ/len(value['/dev3481/imps/0/sample']['param0'])
+        for i in range(0, len(value['/dev3481/imps/0/sample']['z'])):
+            RealZ += value['/dev3481/imps/0/sample']['z'][i].real
+            ImagZ += value['/dev3481/imps/0/sample']['z'][i].imag
+            frequency += value['/dev3481/imps/0/sample']['frequency'][i]
+        RealZ = RealZ/len(value['/dev3481/imps/0/sample']['z'])
+        ImagZ = ImagZ/len(value['/dev3481/imps/0/sample']['z'])
+        frequency = frequency/len(value['/dev3481/imps/0/sample']['frequency'])
+        data['RealZ'][dataindex] = RealZ
+        data['ImagZ'][dataindex] = ImagZ
+        data['frequency'][dataindex] = frequency
         print('The real part of the impedance %.8f ohm' % RealZ)
         print('The imaginary part of the impedance %.9fj ohm' % ImagZ)
-    return len(value['/dev3481/imps/0/sample']['param0'])
+    return data
 
 
 # The name of the MFIA
@@ -56,27 +65,34 @@ demod_rate = 10e3
 time_constant = 0.01
 frequency = 400e3  # This must variable to measure multiple frequency points
 imp_index = 0
-curr_index = daq.getInt('/%s/imps/%d/current/inputselect' % (device, imp_index))
-volt_index = daq.getInt('/%s/imps/%d/voltage/inputselect' % (device, imp_index))
-man_curr_range = 10e-3
-man_volt_range = 10e-3
 
 exp_setting = [['/%s/imps/%d/enable' % (device, imp_index), 1],
                ['/%s/imps/%d/mode' % (device, imp_index), 1],
                ['/%s/imps/%d/auto/output' % (device, imp_index), 1],
                ['/%s/imps/%d/auto/bw' % (device, imp_index), 1],
                ['/%s/imps/%d/freq' % (device, imp_index), 500],
-               ['/%s/imps/%d/auto/inputrange' % (device, imp_index), 0],
-               ['/%s/currins/%d/range' % (device, curr_index), man_curr_range],
-               ['/%s/sigins/%d/range' % (device, volt_index), man_volt_range]]
+               ['/%s/imps/%d/auto/inputrange' % (device, imp_index), 1]]
 daq.set(exp_setting)
 daq.sync()
 
-trigger_auto_ranging = [['/%s/currins/%d/autorange' % (device, curr_index), 1],
-                        ['/%s/sigins/%d/autorange' % (device, volt_index), 1]]
-print('Start auto ranging. This takes a few seconds.')
-# daq.set(trigger_auto_ranging)
-
 daq.subscribe('/dev3481/IMPS/0/SAMPLE')
+data = get_value()
+_, (ax1, ax2) = plt.subplots(2, 1)
 
-get_value()
+for i in range(0, len(data['RealZ'])):
+    frequency = data['frequency'][i]
+    RealZ = data['RealZ'][i]
+    ImagZ = data['ImagZ'][i]
+ax1.plot(frequency, RealZ, 'b-')
+ax2.plot(frequency, ImagZ, 'ro')
+ax1.grid()
+ax1.set_ylabel('R')
+ax1.autoscale()
+
+ax2.grid()
+ax2.set_xlabel('Frequency ($Hz$)')
+ax2.set_ylabel('ImagZ ohm')
+ax2.autoscale()
+
+plt.draw()
+plt.show()
