@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import zhinst.utils
 import zhinst.examples
 from collections import defaultdict
-# data = zhinst.examples.common.example_sweeper.run_example('dev3481', 0.1, True)
 
 
 def get_value():
@@ -32,6 +31,7 @@ def get_value():
         data['frequency'][dataindex] = frequency
         print('The real part of the impedance %.8f ohm' % RealZ)
         print('The imaginary part of the impedance %.9fj ohm' % ImagZ)
+        print('Frequency is %d' % frequency)
     return data
 
 
@@ -55,6 +55,7 @@ general_setting = [['/%s/demods/*/enable' % device, 0],
                    ['/%s/imps/*/enable' % device, 0]]
 daq.set(general_setting)
 daq.sync()
+
 amplitude = 0.1
 out_channel = 0
 out_mixer_channel = zhinst.utils.default_output_mixer_channel(props)
@@ -73,19 +74,37 @@ exp_setting = [['/%s/imps/%d/enable' % (device, imp_index), 1],
                ['/%s/imps/%d/freq' % (device, imp_index), 500],
                ['/%s/imps/%d/auto/inputrange' % (device, imp_index), 1]]
 daq.set(exp_setting)
+
+# Unsubscribe any streaming data.
+daq.unsubscribe('*')
+
+# Wait for the demodulator filter to settle.
+time.sleep(10*time_constant)
+
 daq.sync()
 
-daq.subscribe('/dev3481/IMPS/0/SAMPLE')
+path = '/dev3481/IMPS/0/SAMPLE'
+daq.subscribe(path)
+
+# data = zhinst.examples.common.example_poll.run_example('dev3481', 0.1, True)
 data = get_value()
+print(len(data['RealZ']))
+
+
+daq.unsubscribe('*')
+
+frequency = np.empty(shape=(len(data['RealZ']), 1))
+RealZ = np.empty(shape=(len(data['RealZ']), 1))
+ImagZ = np.empty(shape=(len(data['RealZ']), 1))
 _, (ax1, ax2) = plt.subplots(2, 1)
 
 for i in range(0, len(data['RealZ'])):
-    frequency = data['frequency'][i]
-    RealZ = data['RealZ'][i]
-    ImagZ = data['ImagZ'][i]
-ax1.plot(frequency, RealZ, 'b-')
-ax2.plot(frequency, ImagZ, 'ro')
-ax1.grid()
+    frequency[i] = data['frequency'][i]
+    RealZ[i] = data['RealZ'][i]
+    ImagZ[i] = data['ImagZ'][i]
+ax2.plot(frequency, ImagZ)
+ax1.plot(frequency, RealZ)
+ax1.grid(True)
 ax1.set_ylabel('R')
 ax1.autoscale()
 
