@@ -10,6 +10,7 @@ from collections import defaultdict
 
 
 def get_value():
+    data = defaultdict(dict)
     RealZ = 0
     ImagZ = 0
     frequency = 0
@@ -44,6 +45,23 @@ def start_impedance_sweep(start_freq, stop_freq, samples):
         data['ImagZ'][dataindex] = data_get_value['ImagZ']
         data['frequency'][dataindex] = data_get_value['frequency']
     return data
+
+
+def plot_result(RealZ, ImagZ, frequency):
+    _, (ax1, ax2) = plt.subplots(2, 1)
+    ax2.plot(frequency, ImagZ)
+    ax1.plot(frequency, RealZ)
+    ax1.grid(True)
+    ax1.set_ylabel('R')
+    ax1.autoscale()
+
+    ax2.grid(True)
+    ax2.set_xlabel('Frequency ($Hz$)')
+    ax2.set_ylabel('ImagZ ohm')
+    ax2.autoscale()
+
+    plt.draw()
+    return
 
 
 # The name of the MFIA
@@ -82,31 +100,28 @@ daq.sync()
 
 path = '/dev3481/IMPS/0/SAMPLE'
 daq.subscribe(path)
+a = 150000
+b = 160000
+c = 1000
+for i in range(0, 10):
 
-data = start_impedance_sweep(150000, 300000, 15)
+    data = start_impedance_sweep(a, b, c)
+    frequency = np.empty(shape=(len(data['RealZ'])))
+    RealZ = np.empty(shape=(len(data['RealZ'])))
+    ImagZ = np.empty(shape=(len(data['RealZ'])))
 
+    for i in range(0, len(data['RealZ'])):
+        frequency[i] = data['frequency'][i]
+        RealZ[i] = data['RealZ'][i]
+        ImagZ[i] = data['ImagZ'][i]
+    plot_result(RealZ, ImagZ, frequency)
+
+    a = data['frequency'][Analysis.simple_peak_find(RealZ)] - 500
+    b = data['frequency'][Analysis.simple_peak_find(RealZ)] + 500
+    print("%d hz " % frequency[Analysis.simple_peak_find(RealZ)])
+    print("%d ohm" % RealZ[0])
+    print("%d ohm" % RealZ[1])
+
+plot_result(RealZ, ImagZ, frequency)
 daq.unsubscribe('*')
-
-frequency = np.empty(shape=(len(data['RealZ']), 1))
-RealZ = np.empty(shape=(len(data['RealZ']), 1))
-ImagZ = np.empty(shape=(len(data['RealZ']), 1))
-_, (ax1, ax2) = plt.subplots(2, 1)
-
-for i in range(0, len(data['RealZ'])):
-    frequency[i] = data['frequency'][i]
-    RealZ[i] = data['RealZ'][i]
-    ImagZ[i] = data['ImagZ'][i]
-ax2.plot(frequency, ImagZ)
-ax1.plot(frequency, RealZ)
-ax1.grid(True)
-ax1.set_ylabel('R')
-ax1.autoscale()
-
-ax2.grid(True)
-ax2.set_xlabel('Frequency ($Hz$)')
-ax2.set_ylabel('ImagZ ohm')
-ax2.autoscale()
-
-plt.draw()
-Analysis.__init__()
-print(Analysis.simple_peak_find(RealZ))
+print("%d hz " % frequency[Analysis.simple_peak_find(RealZ)])
