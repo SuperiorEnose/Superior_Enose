@@ -5,6 +5,7 @@ import time
 import matplotlib.pyplot as plt
 import zhinst.utils
 import zhinst.examples
+from analysis import Analysis
 from collections import defaultdict
 
 
@@ -12,26 +13,36 @@ def get_value():
     RealZ = 0
     ImagZ = 0
     frequency = 0
+    value = daq.poll(0.1, 500, 0, True)
+    for i in range(0, len(value['/dev3481/imps/0/sample']['z'])):
+        RealZ += value['/dev3481/imps/0/sample']['z'][i].real
+        ImagZ += value['/dev3481/imps/0/sample']['z'][i].imag
+        frequency += value['/dev3481/imps/0/sample']['frequency'][i]
+    RealZ = RealZ/len(value['/dev3481/imps/0/sample']['z'])
+    ImagZ = ImagZ/len(value['/dev3481/imps/0/sample']['z'])
+    frequency = frequency/len(value['/dev3481/imps/0/sample']['frequency'])
+    data['RealZ'] = RealZ
+    data['ImagZ'] = ImagZ
+    data['frequency'] = frequency
+    return data
+
+
+def start_impedance_sweep(start_freq, stop_freq, samples):
     data = defaultdict(dict)
-    for dataindex in range(0, 10):
-        fprop = 500 + dataindex*1000
+    settle_turn_on = 0
+    step_size = (stop_freq-start_freq)/samples
+    for dataindex in range(0, samples):
+        fprop = start_freq + dataindex*step_size
         daq.set([['/%s/imps/%d/freq' % (device, imp_index), fprop]])
         daq.sync()
-        time.sleep(0.5)
-        value = daq.poll(0.1, 500, 0, True)
-        for i in range(0, len(value['/dev3481/imps/0/sample']['z'])):
-            RealZ += value['/dev3481/imps/0/sample']['z'][i].real
-            ImagZ += value['/dev3481/imps/0/sample']['z'][i].imag
-            frequency += value['/dev3481/imps/0/sample']['frequency'][i]
-        RealZ = RealZ/len(value['/dev3481/imps/0/sample']['z'])
-        ImagZ = ImagZ/len(value['/dev3481/imps/0/sample']['z'])
-        frequency = frequency/len(value['/dev3481/imps/0/sample']['frequency'])
-        data['RealZ'][dataindex] = RealZ
-        data['ImagZ'][dataindex] = ImagZ
-        data['frequency'][dataindex] = frequency
-        print('The real part of the impedance %.8f ohm' % RealZ)
-        print('The imaginary part of the impedance %.9fj ohm' % ImagZ)
-        print('Frequency is %d' % frequency)
+        if settle_turn_on == 0:     # Wait for the demodulator filter to settle.
+            time.sleep(2)
+            settle_turn_on = 1
+        time.sleep(0.001)
+        data_get_value = get_value()
+        data['RealZ'][dataindex] = data_get_value['RealZ']
+        data['ImagZ'][dataindex] = data_get_value['ImagZ']
+        data['frequency'][dataindex] = data_get_value['frequency']
     return data
 
 
@@ -56,40 +67,23 @@ general_setting = [['/%s/demods/*/enable' % device, 0],
 daq.set(general_setting)
 daq.sync()
 
-amplitude = 0.1
-out_channel = 0
-out_mixer_channel = zhinst.utils.default_output_mixer_channel(props)
-in_channel = 0
-demod_index = 0
-osc_index = 0
-demod_rate = 10e3
-time_constant = 0.01
-frequency = 400e3  # This must variable to measure multiple frequency points
 imp_index = 0
 
 exp_setting = [['/%s/imps/%d/enable' % (device, imp_index), 1],
                ['/%s/imps/%d/mode' % (device, imp_index), 1],
                ['/%s/imps/%d/auto/output' % (device, imp_index), 1],
                ['/%s/imps/%d/auto/bw' % (device, imp_index), 1],
-               ['/%s/imps/%d/freq' % (device, imp_index), 500],
                ['/%s/imps/%d/auto/inputrange' % (device, imp_index), 1]]
 daq.set(exp_setting)
 
 # Unsubscribe any streaming data.
 daq.unsubscribe('*')
-
-# Wait for the demodulator filter to settle.
-time.sleep(10*time_constant)
-
 daq.sync()
 
 path = '/dev3481/IMPS/0/SAMPLE'
 daq.subscribe(path)
 
-# data = zhinst.examples.common.example_poll.run_example('dev3481', 0.1, True)
-data = get_value()
-print(len(data['RealZ']))
-
+data = start_impedance_sweep(150000, 300000, 15)
 
 daq.unsubscribe('*')
 
@@ -108,10 +102,11 @@ ax1.grid(True)
 ax1.set_ylabel('R')
 ax1.autoscale()
 
-ax2.grid()
+ax2.grid(True)
 ax2.set_xlabel('Frequency ($Hz$)')
 ax2.set_ylabel('ImagZ ohm')
 ax2.autoscale()
 
 plt.draw()
-plt.show()
+Analysis.__init__()
+print(Analysis.simple_peak_find(RealZ))
