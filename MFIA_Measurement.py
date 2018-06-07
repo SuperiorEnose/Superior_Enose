@@ -38,6 +38,7 @@ def start_impedance_sweep(start_freq, stop_freq, samples):
         daq.sync()
         if settle_turn_on == 0:     # Wait for the demodulator filter to settle.
             time.sleep(2)
+            get_value()
             settle_turn_on = 1
         time.sleep(0.001)
         data_get_value = get_value()
@@ -100,12 +101,12 @@ daq.sync()
 
 path = '/dev3481/IMPS/0/SAMPLE'
 daq.subscribe(path)
-a = 150000
-b = 160000
-c = 1000
-for i in range(0, 10):
+start = 100000
+stop = 200000
+n = 500
+for i in range(0, 3):
 
-    data = start_impedance_sweep(a, b, c)
+    data = start_impedance_sweep(start, stop, n)
     frequency = np.empty(shape=(len(data['RealZ'])))
     RealZ = np.empty(shape=(len(data['RealZ'])))
     ImagZ = np.empty(shape=(len(data['RealZ'])))
@@ -116,12 +117,11 @@ for i in range(0, 10):
         ImagZ[i] = data['ImagZ'][i]
     plot_result(RealZ, ImagZ, frequency)
 
-    a = data['frequency'][Analysis.simple_peak_find(RealZ)] - 500
-    b = data['frequency'][Analysis.simple_peak_find(RealZ)] + 500
-    print("%d hz " % frequency[Analysis.simple_peak_find(RealZ)])
-    print("%d ohm" % RealZ[0])
-    print("%d ohm" % RealZ[1])
+    k = Analysis()
+    start = data['frequency'][k.simple_peak_find(RealZ, n)] - 500
+    stop = data['frequency'][k.simple_peak_find(RealZ, n)] + 500
+    print("%d hz " % frequency[k.simple_peak_find(RealZ, n)])
 
-plot_result(RealZ, ImagZ, frequency)
+plt.draw()
 daq.unsubscribe('*')
-print("%d hz " % frequency[Analysis.simple_peak_find(RealZ)])
+daq.set([['/%s/imps/*/enable' % device, 0]])
