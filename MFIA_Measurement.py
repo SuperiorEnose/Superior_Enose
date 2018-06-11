@@ -101,10 +101,10 @@ daq.sync()
 
 path = '/dev3481/IMPS/0/SAMPLE'
 daq.subscribe(path)
-start = 100000
-stop = 200000
+start = 140000
+stop = 145000
 n = 500
-for i in range(0, 3):
+for i in range(0, 9):
 
     data = start_impedance_sweep(start, stop, n)
     frequency = np.empty(shape=(len(data['RealZ'])))
